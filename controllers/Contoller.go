@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/deepak/module_page/models"
-	"github.com/deepak/module_page/services"
 	"github.com/gin-gonic/gin"
+	"github.com/module_page/models"
+	"github.com/module_page/services"
 )
 
 type PageController struct {
-	UserService services.PageService
+	PageService services.PageService
 }
 
 func SortByPriority_Pages(mpp map[string]int) []string {
@@ -27,13 +27,13 @@ func SortByPriority_Pages(mpp map[string]int) []string {
 	return keys
 }
 
-func New(userservice services.PageService) PageController {
+func New(pageservice services.PageService) PageController {
 	return PageController{
-		UserService: userservice,
+		PageService: pageservice,
 	}
 }
 
-func (uc *PageController) CreateNewPage(ctx *gin.Context) {
+func (pgc *PageController) CreateNewPage(ctx *gin.Context) {
 	var page models.Pages
 	if err := ctx.ShouldBindJSON(&page); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
@@ -43,7 +43,7 @@ func (uc *PageController) CreateNewPage(ctx *gin.Context) {
 	//checking total number of keys
 	if len(temp) <= 10 {
 
-		err := uc.UserService.AddPage(&page)
+		err := pgc.PageService.AddPage(&page)
 
 		if err != nil {
 			ctx.JSON(http.StatusBadGateway, gin.H{"message": err.Error()})
@@ -56,12 +56,12 @@ func (uc *PageController) CreateNewPage(ctx *gin.Context) {
 
 }
 
-func (uc *PageController) GetByQuery(ctx *gin.Context) {
+func (pgc *PageController) GetByQuery(ctx *gin.Context) {
 	temp := []string{}
 	var query string = ctx.Param("query")
 	queries := strings.Split(query, " ")
 
-	user, err := uc.UserService.GetAllPages()
+	user, err := pgc.PageService.GetAllPages()
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"message": err.Error()})
 		return
@@ -71,11 +71,11 @@ func (uc *PageController) GetByQuery(ctx *gin.Context) {
 		temp = append(temp, t.Key)
 	}
 	val := []int{}
-	for i, _ := range temp {
+	for i := range temp {
 		var sum int = 0
 		temp2 := strings.Split(temp[i], " ")
 		for k := 0; k < len(temp2); k++ {
-			for j, _ := range queries {
+			for j := range queries {
 				if strings.EqualFold(temp2[k], queries[j]) {
 					sum += (10 - k) * (10 - j)
 				}
@@ -96,17 +96,20 @@ func (uc *PageController) GetByQuery(ctx *gin.Context) {
 
 }
 
-func (uc *PageController) GetAllPage(ctx *gin.Context) {
-	users, err := uc.UserService.GetAllPages()
+func (pgc *PageController) GetAllPage(ctx *gin.Context) {
+	users, err := pgc.PageService.GetAllPages()
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"message": err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, users)
 }
-
-func (uc *PageController) Routes(route *gin.RouterGroup) {
-	route.POST("/", uc.CreateNewPage)
-	route.GET("/", uc.GetAllPage)
-	route.GET("/:query", uc.GetByQuery)
+func (pgc *PageController) active(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, gin.H{"message": "api is active"})
+}
+func (pgc *PageController) Routes(route *gin.RouterGroup) {
+	route.POST("/addpage", pgc.CreateNewPage)
+	route.GET("/pages", pgc.GetAllPage)
+	route.GET("/:query", pgc.GetByQuery)
+	route.GET("/", pgc.active)
 }
